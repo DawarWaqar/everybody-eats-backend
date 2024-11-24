@@ -1,8 +1,14 @@
-# Create your views here.
 from rest_framework import generics
-from .models import FoodListing, Restaurant, NGO
-from .serializers import FoodListingSerializer, RestaurantSerializer, NGOSerializer
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
+from .models import FoodListing, Restaurant, NGO, FoodClaim
+from .serializers import FoodListingSerializer, RestaurantSerializer, NGOSerializer, FoodClaimSerializer
+from rest_framework.authtoken.models import Token
+from rest_framework.decorators import api_view
 
+# View to list and create food listings (for restaurants)
 class FoodListingView(generics.ListCreateAPIView):
     queryset = FoodListing.objects.all()
     serializer_class = FoodListingSerializer
@@ -26,3 +32,38 @@ class NGORegistrationView(generics.CreateAPIView):
 class NGOListView(generics.ListAPIView):
     queryset = NGO.objects.all()
     serializer_class = NGOSerializer
+
+# View to allow an NGO to claim a portion of a food listing
+
+class ClaimFoodView(generics.CreateAPIView):
+    serializer_class = FoodClaimSerializer
+    permission_classes = [IsAuthenticated]
+
+    def perform_create(self, serializer):
+        # Automatically associate the authenticated NGO with the claim (done in the serializer)
+        serializer.save()
+
+    def post(self, request, *args, **kwargs):
+        # Call the generic `CreateAPIView`'s post method to handle the claim creation
+        return super().post(request, *args, **kwargs)
+
+
+
+@api_view(['POST'])
+def logout_view(request):
+    """
+    Logout the user by deleting their authentication token.
+    """
+    try:
+        # Get the token from request headers
+        token = request.headers.get('Authorization').split()[1]
+        user_token = Token.objects.get(key=token)
+        
+        # Delete the token to log out
+        user_token.delete()
+        return Response({"detail": "Successfully logged out."}, status=status.HTTP_200_OK)
+    
+    except Token.DoesNotExist:
+        return Response({"detail": "Invalid token."}, status=status.HTTP_400_BAD_REQUEST)
+    except IndexError:
+        return Response({"detail": "Token not provided."}, status=status.HTTP_400_BAD_REQUEST)
