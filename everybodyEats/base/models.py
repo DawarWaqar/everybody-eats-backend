@@ -20,7 +20,9 @@ class FoodListing(models.Model):
     special_instructions = models.TextField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     status = models.CharField(max_length=20, default='available')  # Available, Partially Claimed, Claimed
-    restaurant = models.ForeignKey('Restaurant', on_delete=models.CASCADE, null=True)
+    # restaurant = models.ForeignKey('Restaurant', on_delete=models.CASCADE, null=True)
+    restaurant = models.ForeignKey('Restaurant', on_delete=models.CASCADE, null=True, related_name='food_listings')
+
 
     # Use a reverse relationship to access all claims (NGOs that have claimed portions of the food)
     claimed_by = models.ManyToManyField('NGO', through='FoodClaim', related_name='claimed_food')

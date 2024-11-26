@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import FoodListingView, RestaurantRegistrationView, RestaurantListView, NGORegistrationView, NGOListView, ClaimFoodView, logout_view
+from .views import FoodListingView, RestaurantRegistrationView, RestaurantListView, NGORegistrationView, NGOListView, ClaimFoodView, logout_view, RestaurantDetailView
 from rest_framework.authtoken.views import obtain_auth_token
 
 urlpatterns = [
@@ -9,6 +9,7 @@ urlpatterns = [
     # Restaurant Routes
     path("register-restaurant/", RestaurantRegistrationView.as_view(), name='register_restaurant'),
     path("restaurants/", RestaurantListView.as_view(), name='restaurants_list'),
+    path('restaurants/<int:pk>/', RestaurantDetailView.as_view(), name='restaurant_detail'),
     
     # NGO Routes
     path("register-ngo/", NGORegistrationView.as_view(), name='register_ngo'),

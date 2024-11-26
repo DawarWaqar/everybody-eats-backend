@@ -36,10 +36,12 @@ class FoodListingSerializer(serializers.ModelSerializer):
 # Serializer for the Restaurant model
 class RestaurantSerializer(serializers.ModelSerializer):
     user = UserSerializer()
+    food_listings = FoodListingSerializer(many=True, read_only=True)  # Include food listings as nested data
+
 
     class Meta:
         model = Restaurant
-        fields = ['user', 'name', 'address', 'phone']
+        fields = ['id','user', 'name', 'address', 'phone', 'food_listings']
 
     def create(self, validated_data):
         user_data = validated_data.pop('user')

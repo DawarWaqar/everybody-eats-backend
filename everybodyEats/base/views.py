@@ -23,6 +23,17 @@ class RestaurantListView(generics.ListAPIView):
     queryset = Restaurant.objects.all()
     serializer_class = RestaurantSerializer
 
+class RestaurantDetailView(APIView):
+    def get(self, request, pk):
+        try:
+            restaurant = Restaurant.objects.get(id=pk)  # Fetch restaurant by ID
+        except Restaurant.DoesNotExist:
+            return Response({"detail": "Restaurant not found."}, status=status.HTTP_404_NOT_FOUND)
+        
+        # Serialize the restaurant and include food listings
+        serializer = RestaurantSerializer(restaurant)
+        return Response(serializer.data)
+
 # View to register a new NGO
 class NGORegistrationView(generics.CreateAPIView):
     queryset = NGO.objects.all()
