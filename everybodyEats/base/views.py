@@ -9,6 +9,10 @@ from rest_framework.authtoken.models import Token
 from rest_framework.decorators import api_view
 from rest_framework.permissions import AllowAny
 from rest_framework.authtoken.views import ObtainAuthToken
+from django.db.models import Sum, Count, Max
+from datetime import datetime, timedelta
+from django.db.models.functions import TruncMonth
+
 
 class CustomAuthToken(ObtainAuthToken):
     def post(self, request, *args, **kwargs):
@@ -156,3 +160,114 @@ class NGOClaimsView(APIView):
 class CustomObtainAuthToken(ObtainAuthToken):
     authentication_classes = []
     permission_classes = [AllowAny]
+    
+class DonationStatisticsView(APIView):
+
+    def get(self, request):
+        # Current date and time
+        now = datetime.now()
+        
+        # Calculate total donations
+        total_stats = FoodClaim.objects.aggregate(
+            total_claims=Count('id'),
+            total_quantity=Sum('claimed_quantity')
+        )
+
+        # Calculate current month's donations
+        current_month_stats = FoodClaim.objects.filter(
+            food_listing__created_at__year=now.year,
+            food_listing__created_at__month=now.month
+        ).aggregate(
+            total_claims=Count('id'),
+            total_quantity=Sum('claimed_quantity')
+        )
+
+        # Calculate last month's donations
+        last_month = (now.replace(day=1) - timedelta(days=1))  # Last month's last day
+        last_month_stats = FoodClaim.objects.filter(
+            food_listing__created_at__year=last_month.year,
+            food_listing__created_at__month=last_month.month
+        ).aggregate(
+            total_claims=Count('id'),
+            total_quantity=Sum('claimed_quantity')
+        )
+        
+        # Fetch recent donations (last 5 restaurants with their most recent donation)
+        recent_donations = (
+            FoodClaim.objects.select_related('food_listing', 'food_listing__restaurant')
+            .filter(food_listing__restaurant__isnull=False)  # Ensure restaurant exists
+            .values('food_listing__restaurant__id', 'food_listing__restaurant__name')
+            .annotate(
+                most_recent_claim=Max('claimed_at'),  # Get the most recent claim per restaurant
+                most_recent_claim_quantity=Max('claimed_quantity')  # Get the most recent claimed quantity
+            )
+            .order_by('-most_recent_claim')  # Order by the most recent claim date
+        )[:5]
+
+        # Format the response for recent donations
+        recent_donations_data = []
+        for donation in recent_donations:
+            # Get the most recent food claim and associated food listing for the restaurant
+            recent_claim = FoodClaim.objects.filter(
+                food_listing__restaurant_id=donation['food_listing__restaurant__id'],
+                claimed_at=donation['most_recent_claim']
+            ).first()
+
+            if recent_claim:
+                recent_donations_data.append({
+                    'restaurant_name': donation['food_listing__restaurant__name'],
+                    'most_recent_donation': {
+                        'food_name': recent_claim.food_listing.food_name,
+                        'claimed_quantity': recent_claim.claimed_quantity,
+                        'pickup_address': recent_claim.food_listing.pickup_address,
+                        'donation_date': recent_claim.claimed_at.strftime('%Y-%m-%d %H:%M:%S')
+                    }
+                })
+
+        # Format the response
+        response_data = {
+            "total_donations": {
+                "total_donations": total_stats['total_claims'] or 0,
+                "total_quantity": total_stats['total_quantity'] or 0,
+            },
+            "current_month_donations": {
+                "total_donations": current_month_stats['total_claims'] or 0,
+                "total_quantity": current_month_stats['total_quantity'] or 0,
+            },
+            "last_month_donations": {
+                "total_donations": last_month_stats['total_claims'] or 0,
+                "total_quantity": last_month_stats['total_quantity'] or 0,
+            },
+            "recent_donations": recent_donations_data 
+        }
+
+        return Response(response_data, status=200)
+
+
+class MonthlyDonationStatsView(APIView):
+
+    def get(self, request):
+        # Current date to get this year
+        current_year = datetime.now().year
+        
+        # Query to get number of donations and total quantity for each month in the current year
+        donations_per_month = FoodClaim.objects.filter(
+            claimed_at__year=current_year  # Filter claims from this year
+        ).annotate(month=TruncMonth('claimed_at')).values('month').annotate(
+            donations_count=Count('id'),  # Count the number of donations
+            total_claimed_quantity=Sum('claimed_quantity')  # Sum the claimed quantity
+        ).order_by('month')  # Order by month
+        
+        # Format the data into a list of dictionaries
+        monthly_donations = []
+        for donation in donations_per_month:
+            monthly_donations.append({
+                'month': donation['month'].strftime('%B'),  # Month name (e.g. January, February)
+                'year': donation['month'].year,
+                'donations_count': donation['donations_count'],
+                'total_claimed_quantity': donation['total_claimed_quantity'],  # Total claimed quantity
+            })
+        
+        return Response({
+            'monthly_donations': monthly_donations
+        }, status=200)

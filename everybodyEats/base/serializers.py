@@ -149,9 +149,10 @@ class FoodClaimSerializer(serializers.ModelSerializer):
         return food_claim
 
 class FoodListingCustomSerializer(serializers.ModelSerializer):
+    restaurant_name = serializers.CharField(source='restaurant.name', read_only=True)
     class Meta:
         model = FoodListing
-        fields = ['id', 'food_name', 'available_pickup_times', 'pickup_address']
+        fields = ['id', 'food_name', 'available_pickup_times', 'pickup_address', 'restaurant_name']
 
 class FoodClaimDonationSerializer(serializers.ModelSerializer):
     food_listing = FoodListingCustomSerializer()  # Use the FoodListingSerializer for nested details
