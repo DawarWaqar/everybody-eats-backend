@@ -7,6 +7,7 @@ class FoodClaim(models.Model):
     food_listing = models.ForeignKey('FoodListing', on_delete=models.CASCADE)
     ngo = models.ForeignKey('NGO', on_delete=models.CASCADE)
     claimed_quantity = models.PositiveIntegerField()  # How much of the food the NGO claimed
+    claimed_at = models.DateTimeField(auto_now_add=True, null=True)
 
     def __str__(self):
         return f"{self.ngo.name} claimed {self.claimed_quantity} of {self.food_listing.food_name}"
@@ -43,7 +44,7 @@ class Restaurant(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, null=True)
     name = models.CharField(max_length=100)
     address = models.CharField(max_length=255)
-    email = models.EmailField(unique=True)
+    email = models.EmailField()
     phone = models.CharField(max_length=15)
     created_at = models.DateTimeField(auto_now_add=True)
 

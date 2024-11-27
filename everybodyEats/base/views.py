@@ -4,17 +4,30 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from .models import FoodListing, Restaurant, NGO, FoodClaim
-from .serializers import (
-    FoodListingSerializer,
-    RestaurantSerializer,
-    NGOSerializer,
-    FoodClaimSerializer,
-)
+from .serializers import FoodListingSerializer, RestaurantSerializer, NGOSerializer, FoodClaimSerializer, FoodClaimDonationSerializer
 from rest_framework.authtoken.models import Token
 from rest_framework.decorators import api_view
 from rest_framework.permissions import AllowAny
 from rest_framework.authtoken.views import ObtainAuthToken
 
+class CustomAuthToken(ObtainAuthToken):
+    def post(self, request, *args, **kwargs):
+        serializer = self.serializer_class(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        user = serializer.validated_data['user']
+        token, created = Token.objects.get_or_create(user=user)
+
+        # Determine user type (Restaurant or NGO)
+        user_type = None
+        if Restaurant.objects.filter(user=user).exists():
+            user_type = "restaurant"
+        elif NGO.objects.filter(user=user).exists():
+            user_type = "ngo"
+
+        return Response({
+            'token': token.key,
+            'role': user_type
+        })
 
 # View to list and create food listings (for restaurants)
 class FoodListingView(generics.ListCreateAPIView):
@@ -101,10 +114,44 @@ def logout_view(request):
             {"detail": "Invalid token."}, status=status.HTTP_400_BAD_REQUEST
         )
     except IndexError:
-        return Response(
-            {"detail": "Token not provided."}, status=status.HTTP_400_BAD_REQUEST
-        )
+        return Response({"detail": "Token not provided."}, status=status.HTTP_400_BAD_REQUEST)
+    
+# View to list claims linked to a restaurant
+class RestaurantDonationsView(APIView):
+    permission_classes = [IsAuthenticated]
 
+    def get(self, request):
+        try:
+            # Get the restaurant
+            restaurant = Restaurant.objects.get(user=request.user)
+        except Restaurant.DoesNotExist:
+            return Response({"detail": "Restaurant not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        # Fetch claims linked to the restaurant's food listings
+        claims = FoodClaim.objects.filter(food_listing__restaurant=restaurant)
+
+        # Serialize the claims
+        serializer = FoodClaimDonationSerializer(claims, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+# View to list past claims by an NGO
+class NGOClaimsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            # Get the NGO
+            ngo = NGO.objects.get(user=request.user)
+        except NGO.DoesNotExist:
+            return Response({"detail": "NGO not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        # Fetch all claims made by the NGO
+        claims = FoodClaim.objects.filter(ngo=ngo)
+
+        # Serialize the data
+        serializer = FoodClaimDonationSerializer(claims, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 class CustomObtainAuthToken(ObtainAuthToken):
     authentication_classes = []
