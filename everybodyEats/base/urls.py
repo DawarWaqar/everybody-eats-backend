@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import FoodListingView, RestaurantRegistrationView, RestaurantListView, NGORegistrationView, NGOListView, ClaimFoodView, logout_view, RestaurantDetailView
+from .views import FoodListingView, RestaurantRegistrationView, RestaurantListView, NGORegistrationView, NGOListView, ClaimFoodView, logout_view, RestaurantDetailView, RestaurantDonationsView, NGOClaimsView, CustomAuthToken
 from rest_framework.authtoken.views import obtain_auth_token
 
 urlpatterns = [
@@ -18,6 +18,12 @@ urlpatterns = [
     # Claim and Update Donation Routes
     path('claim-food/', ClaimFoodView.as_view(), name='claim_food_listing'),
     
-    path('login/', obtain_auth_token, name='api_token_auth'),  # Login to get the token
+    path('login/', CustomAuthToken.as_view(), name='custom_auth_token'),  # Login to get the token
     path('logout/', logout_view, name='logout'),  # Logout to delete token
+    
+    # Get past donations by a restaurant
+    path('donations/', RestaurantDonationsView.as_view(), name='restaurant_donations'),
+
+    # Get past claims by an NGO
+    path('claims/', NGOClaimsView.as_view(), name='ngo_claims'),
 ]

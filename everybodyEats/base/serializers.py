@@ -71,7 +71,7 @@ class NGOSerializer(serializers.ModelSerializer):
 class FoodClaimSerializer(serializers.ModelSerializer):
     class Meta:
         model = FoodClaim
-        fields = ['food_listing', 'claimed_quantity']
+        fields = ['food_listing', 'claimed_quantity', 'claimed_at']
 
     def validate_claimed_quantity(self, value):
         # Ensure that claimed quantity is positive
@@ -115,3 +115,15 @@ class FoodClaimSerializer(serializers.ModelSerializer):
         food_listing.save()
 
         return food_claim
+
+class FoodListingCustomSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = FoodListing
+        fields = ['id', 'food_name', 'available_pickup_times', 'pickup_address']
+
+class FoodClaimDonationSerializer(serializers.ModelSerializer):
+    food_listing = FoodListingCustomSerializer()  # Use the FoodListingSerializer for nested details
+
+    class Meta:
+        model = FoodClaim
+        fields = ['id', 'food_listing', 'claimed_quantity', 'claimed_at']
